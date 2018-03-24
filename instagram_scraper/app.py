@@ -85,7 +85,7 @@ class InstagramScraper(object):
                             latest_stamps=False,
                             media_types=['image', 'video', 'story-image', 'story-video'],
                             tag=False, location=False, search_location=False, comments=False,
-                            verbose=0, include_location=False, filter=None)
+                            verbose=0, include_location=False, always_ignore_media_with_errors=False, filter=None)
 
         allowed_attr = list(default_attr.keys())
         default_attr.update(kwargs)
@@ -133,24 +133,28 @@ class InstagramScraper(object):
         time.sleep(secs % min_delay)
 
     def _retry_prompt(self, url, exception_message):
-        """Show prompt and return True: retry, False: ignore, None: abort"""
-        answer = input( 'Repeated error {0}\n(A)bort, (I)gnore, (R)etry or retry (F)orever?'.format(exception_message) )
-        if answer:
-            answer = answer[0].upper()
-            if answer == 'I':
-                self.logger.info( 'The user has chosen to ignore {0}'.format(url) )
-                return False
-            elif answer == 'R':
-                return True
-            elif answer == 'F':
-                self.logger.info( 'The user has chosen to retry forever' )
-                global MAX_RETRIES
-                MAX_RETRIES = sys.maxsize
-                return True
-            else:
-                self.logger.info( 'The user has chosen to abort' )
+    	if not self.always_ignore_media_with_errors:
+	        """Show prompt and return True: retry, False: ignore, None: abort"""
+	        answer = input( 'Repeated error {0}\n(A)bort, (I)gnore, (R)etry or retry (F)orever?'.format(exception_message) )
+	        if answer:
+	            answer = answer[0].upper()
+	            if answer == 'I':
+	                self.logger.info( 'The user has chosen to ignore {0}'.format(url) )
+	                return False
+	            elif answer == 'R':
+	                return True
+	            elif answer == 'F':
+	                self.logger.info( 'The user has chosen to retry forever' )
+	                global MAX_RETRIES
+	                MAX_RETRIES = sys.maxsize
+	                return True
+	            else:
+	                self.logger.info( 'The user has chosen to abort' )
                 return None
-        
+        else:
+        	self.logger.info( 'The user has chosen to ignore {0}'.format(url) )
+	        return False
+
     def safe_get(self, *args, **kwargs):
         # out of the box solution
         # session.mount('https://', HTTPAdapter(max_retries=...))
@@ -1030,6 +1034,8 @@ def main():
                         help='Enable interactive login challenge solving')
     parser.add_argument('--retry-forever', action='store_true', default=False,
                         help='Retry download attempts endlessly when errors are received')
+    parser.add_argument('--always-ignore-media-with-errors', action='store_true', default=False,
+                        help='Ignore media download when errors are received')
     parser.add_argument('--verbose', '-v', type=int, default=0, help='Logging verbosity level')
 
     args = parser.parse_args()
